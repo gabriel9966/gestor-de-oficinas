@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: oficinapro_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-oficinapro}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oficinapro_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-oficinapro}
+    ports:
+      - '5433:5432'
+    volumes:
+      - oficinapro_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  oficinapro_postgres_data:
