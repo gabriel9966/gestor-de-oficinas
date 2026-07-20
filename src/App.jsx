@@ -114,6 +114,17 @@ function Workspace({ user, actingTenant, onLogout, onExitTenant }) {
 
   const [mechanics, setMechanics] = useState([])
   useEffect(() => { apiFetch('/api/employees?active=1').then(r => r.json()).then(setMechanics).catch(() => {}) }, [])
+  const [stations, setStations] = useState([])
+  const loadStations = useCallback(() => apiFetch('/api/work-stations').then(r => r.json()).then(setStations).catch(() => {}), [])
+  useEffect(() => { loadStations() }, [loadStations])
+  const assignWorkStation = async (workStationId) => {
+    const res = await apiFetch(`/api/orders/${selected.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ work_station_id: workStationId || null }) })
+    const data = await res.json()
+    if (!res.ok) return notify(data.error || t('orderDetail.cannotAssignStation'))
+    setSelected(prev => prev && prev.id === data.id ? { ...prev, ...data } : prev)
+    setOrders(prev => prev.map(o => o.id === data.id ? { ...o, ...data } : o))
+    loadStations()
+  }
   const assignMechanic = async (mechanicId) => {
     const res = await apiFetch(`/api/orders/${selected.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mechanic_id: mechanicId || null }) })
     if (!res.ok) return notify(t('orderDetail.cannotAssignMechanic'))
@@ -159,7 +170,7 @@ function Workspace({ user, actingTenant, onLogout, onExitTenant }) {
     notify(t('common.linkCopied'))
   }
 
-  const nav = [['dashboard', t('nav.dashboard'), <Icon name="gauge" />], ['orders', t('nav.orders'), <Icon name="clipboard" />], ['crm', t('nav.crm'), <Icon name="funnel" />], ['messages', t('nav.messages'), <Icon name="chat" />], ['clients', t('nav.clients'), <Icon name="user" />], ['vehicles', t('nav.vehicles'), <Icon name="car" />], ['catalog', t('nav.catalog'), <Icon name="wrench" />], ['agenda', t('nav.agenda'), <Icon name="calendarIcon" />], ['financial', t('nav.financial'), <Icon name="coin" />]]
+  const nav = [['dashboard', t('nav.dashboard'), <Icon name="gauge" />], ['orders', t('nav.orders'), <Icon name="clipboard" />], ['crm', t('nav.crm'), <Icon name="funnel" />], ['messages', t('nav.messages'), <Icon name="chat" />], ['clients', t('nav.clients'), <Icon name="user" />], ['vehicles', t('nav.vehicles'), <Icon name="car" />], ['catalog', t('nav.catalog'), <Icon name="wrench" />], ['stations', t('nav.stations'), <Icon name="garage" />], ['agenda', t('nav.agenda'), <Icon name="calendarIcon" />], ['financial', t('nav.financial'), <Icon name="coin" />]]
   const workshopName = actingTenant?.name || user.tenant_name || t('sidebar.workshopName')
   return <main className="app-shell">
     <aside className="sidebar">
@@ -173,7 +184,7 @@ function Workspace({ user, actingTenant, onLogout, onExitTenant }) {
     <section className="workspace">
       <header className="topbar"><div className="mobile-brand">{t('appName')}<span>{t('appNamePro')}</span></div><label className="global-search">⌕<input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search.placeholder')} /></label><div className="top-actions">{actingTenant && <div className="admin-banner"><span>{t('admin.viewingAs', { workshop: workshopName })}</span><button type="button" className="text-btn" onClick={onExitTenant}>{t('admin.exit')}</button></div>}<div className="quick-add-wrap"><button type="button" className="icon-btn quick-add-btn" onClick={() => setShowQuickAdd(v => !v)}>＋</button>{showQuickAdd && <div className="notif-dropdown quick-add-menu"><button type="button" onClick={() => { setShowCheckin(true); setShowQuickAdd(false) }}><Icon name="clipboard" size={15} /> {t('dashboard.newOrder')}</button><button type="button" onClick={() => { setShowClient(true); setShowQuickAdd(false) }}><Icon name="user" size={15} /> {t('clients.newClient')}</button><button type="button" onClick={() => { setLeadPipelineId(null); setShowLead(true); setShowQuickAdd(false) }}><Icon name="funnel" size={15} /> {t('crm.newLead')}</button></div>}</div><div className="notif-wrap"><button className="icon-btn" onClick={() => { setShowNotifications(v => !v); loadNotifications() }}>♧{notifications.length > 0 && <b>{notifications.length}</b>}</button>{showNotifications && <div className="notif-dropdown"><div className="notif-dropdown-head">{t('notifications.title')}</div>{notifications.map(n => <div className="notif-item" key={n.id}><strong>{t(`reminderType.${n.type}`, { defaultValue: n.type })}</strong><span>{n.client_name} · {n.plate}</span></div>)}{!notifications.length && <p className="empty-hint">{t('notifications.empty')}</p>}</div>}</div><div className="avatar small">{initials(user.name)}</div></div></header>
       <div className="content">
-        {page === 'dashboard' ? <Dashboard orders={orders} onSelect={selectOrder} onNew={() => setShowCheckin(true)} notify={notify} /> : page === 'crm' ? <CrmPage key={crmVersion} onNew={(pipelineId) => { setLeadPipelineId(pipelineId); setShowLead(true) }} notify={notify} onLeadConverted={(client) => { setCheckinInitial({ client: client.name, phone: client.phone || '' }); setShowCheckin(true) }} /> : page === 'messages' ? <ChatPage notify={notify} /> : page === 'clients' ? <ClientsPage onNew={() => setShowClient(true)} /> : page === 'financial' ? <FinanceiroPage notify={notify} /> : page === 'vehicles' ? <VehiclesPage key={vehiclesVersion} onNew={() => setShowVehicle(true)} /> : page === 'catalog' ? <CatalogPage notify={notify} /> : page === 'agenda' ? <AgendaPage notify={notify} /> : <OrdersPage orders={orders} onSelect={selectOrder} onNew={() => setShowCheckin(true)} />}
+        {page === 'dashboard' ? <Dashboard orders={orders} onSelect={selectOrder} onNew={() => setShowCheckin(true)} notify={notify} /> : page === 'crm' ? <CrmPage key={crmVersion} onNew={(pipelineId) => { setLeadPipelineId(pipelineId); setShowLead(true) }} notify={notify} onLeadConverted={(client) => { setCheckinInitial({ client: client.name, phone: client.phone || '' }); setShowCheckin(true) }} /> : page === 'messages' ? <ChatPage notify={notify} /> : page === 'clients' ? <ClientsPage onNew={() => setShowClient(true)} /> : page === 'financial' ? <FinanceiroPage notify={notify} /> : page === 'vehicles' ? <VehiclesPage key={vehiclesVersion} onNew={() => setShowVehicle(true)} /> : page === 'catalog' ? <CatalogPage notify={notify} /> : page === 'stations' ? <WorkStationsPage notify={notify} /> : page === 'agenda' ? <AgendaPage notify={notify} /> : <OrdersPage orders={orders} onSelect={selectOrder} onNew={() => setShowCheckin(true)} />}
       </div>
     </section>
 
@@ -190,7 +201,13 @@ function Workspace({ user, actingTenant, onLogout, onExitTenant }) {
           {!selected.items?.length && <p className="empty-hint">{t('orderDetail.noItems')}</p>}
           <div className="total"><span>{t('orderDetail.totalExpected')}</span><strong>{moneyOr(selected.total_amount, '—')}</strong></div>
         </div>
-        <div className="detail-section"><h3>{t('orderDetail.responsible')}</h3><div className="mechanic"><div className="avatar green">{initials(selected.mechanic_name || '')}</div><div><strong>{selected.mechanic_name || t('orderDetail.notAssigned')}</strong><span>{t('orderDetail.mechanicRole')}</span></div></div><select className="mechanic-select" value={selected.mechanic_id || ''} onChange={e => assignMechanic(e.target.value ? Number(e.target.value) : null)}><option value="">{t('orderDetail.noAssignment')}</option>{mechanics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+        <div className="detail-section"><h3>{t('orderDetail.responsible')}</h3><div className="mechanic"><div className="avatar green">{initials(selected.mechanic_name || '')}</div><div><strong>{selected.mechanic_name || t('orderDetail.notAssigned')}</strong><span>{t('orderDetail.mechanicRole')}</span></div></div><select className="mechanic-select" value={selected.mechanic_id || ''} onChange={e => assignMechanic(e.target.value ? Number(e.target.value) : null)}><option value="">{t('orderDetail.noAssignment')}</option>{mechanics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#536276', marginTop: 10 }}>{t('orderDetail.workStation')}</label>
+          <select className="mechanic-select" value={selected.work_station_id || ''} onChange={e => assignWorkStation(e.target.value ? Number(e.target.value) : null)}>
+            <option value="">{t('orderDetail.noStation')}</option>
+            {stations.filter(s => !s.occupying_order_id || s.occupying_order_id === selected.id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
         <div className="detail-section"><h3>{t('orderDetail.payment')}</h3><div className="line-item"><span>{t('orderDetail.paymentStatus')}</span><b className={selected.payment_status === 'pago' ? 'paid-tag' : ''}>{selected.payment_status === 'pago' ? t('orderDetail.paid') : selected.payment_status === 'parcial' ? t('orderDetail.partial') : t('orderDetail.pending')}</b></div>{selected.paid_amount > 0 && <><div className="line-item"><span>{t('orderDetail.paidAmount')}</span><b>{moneyOr(selected.paid_amount, '—')}</b></div><div className="line-item"><span>{t('orderDetail.paymentForm')}</span><b>{t(`paymentMethod.${selected.payment_method}`, { defaultValue: selected.payment_method || '—' })}</b></div></>}<button type="button" className="secondary" style={{ marginTop: 10 }} onClick={() => setShowPayment(true)}>{selected.paid_amount > 0 ? t('orderDetail.editPayment') : t('orderDetail.registerPayment')}</button></div>
       </> : tab === 'history' ? <div className="timeline">
         {(selected.history || []).map(event => <div className="timeline-item" key={event.id}><span className="dot"></span><small>{new Date(event.created_at).toLocaleString('pt-BR')}</small><strong>{event.event_type}</strong><p>{event.description}</p>{event.mileage ? <em>{distance(event.mileage)}</em> : null}</div>)}
@@ -777,6 +794,32 @@ function PayablesTab({ notify }) {
   </>
 }
 
+function ReportsTab() {
+  const { t } = useTranslation()
+  const [data, setData] = useState(null)
+  useEffect(() => { apiFetch('/api/reports/cashflow?months=6').then(r => r.json()).then(setData).catch(() => {}) }, [])
+  if (!data) return <p className="empty-hint">{t('common.loading')}</p>
+  const maxAbs = Math.max(1, ...data.series.map(m => Math.max(m.revenue, m.expenses)))
+  return <>
+    <div className="crm-metrics">
+      <div><strong>{money(data.totals.revenue) || '—'}</strong><span>{t('reports.revenue6m')}</span></div>
+      <div><strong>{money(data.totals.expenses) || '—'}</strong><span>{t('reports.expenses6m')}</span></div>
+      <div><strong className={data.totals.balance >= 0 ? 'green-text' : ''}>{money(data.totals.balance) || '—'}</strong><span>{t('reports.balance6m')}</span></div>
+      <div><strong>{money(data.totals.open_payables) || '—'}</strong><span>{t('reports.openPayables')}</span></div>
+    </div>
+    <section className="panel" style={{ padding: 20 }}>
+      <h3 style={{ font: "700 13px 'Plus Jakarta Sans'", margin: '0 0 16px' }}>{t('reports.monthlyTitle')}</h3>
+      {data.series.map(m => <div key={m.month} style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
+          <span>{m.month}</span><span>{t('reports.revenue')} {money(m.revenue) || 'R$ 0'} · {t('reports.expenses')} {money(m.expenses) || 'R$ 0'}</span>
+        </div>
+        <div className="progress" style={{ marginBottom: 3 }}><i style={{ width: `${(m.revenue / maxAbs) * 100}%`, background: 'var(--success)' }}></i></div>
+        <div className="progress"><i style={{ width: `${(m.expenses / maxAbs) * 100}%`, background: 'var(--danger)' }}></i></div>
+      </div>)}
+    </section>
+  </>
+}
+
 function FinanceiroPage({ notify }) {
   const { t } = useTranslation()
   const [tab, setTab] = useState('invoices')
@@ -786,8 +829,9 @@ function FinanceiroPage({ notify }) {
       <button className={tab === 'invoices' ? 'active' : ''} onClick={() => setTab('invoices')}>{t('financial.tabInvoices')}</button>
       <button className={tab === 'suppliers' ? 'active' : ''} onClick={() => setTab('suppliers')}>{t('financial.tabSuppliers')}</button>
       <button className={tab === 'payables' ? 'active' : ''} onClick={() => setTab('payables')}>{t('financial.tabPayables')}</button>
+      <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>{t('financial.tabReports')}</button>
     </div>
-    {tab === 'invoices' ? <InvoicesTab notify={notify} /> : tab === 'suppliers' ? <SuppliersTab notify={notify} /> : <PayablesTab notify={notify} />}
+    {tab === 'invoices' ? <InvoicesTab notify={notify} /> : tab === 'suppliers' ? <SuppliersTab notify={notify} /> : tab === 'payables' ? <PayablesTab notify={notify} /> : <ReportsTab />}
   </>
 }
 
@@ -868,6 +912,43 @@ function CatalogPage({ notify }) {
     </section>
     {showNew && <CatalogModal onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); load() }} notify={notify} />}
     {editing && <CatalogModal item={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} notify={notify} />}
+  </>
+}
+
+const workStationTypeKeys = ['box', 'elevador', 'patio']
+
+function WorkStationsPage({ notify }) {
+  const { t } = useTranslation()
+  const [stations, setStations] = useState([])
+  const [name, setName] = useState('')
+  const [type, setType] = useState(workStationTypeKeys[0])
+  const load = useCallback(() => apiFetch('/api/work-stations').then(r => r.json()).then(setStations).catch(() => {}), [])
+  useEffect(() => { load() }, [load])
+  const create = async (e) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    const res = await apiFetch('/api/work-stations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type }) })
+    const data = await res.json()
+    if (!res.ok) return notify(data.error || t('workStations.cannotSave'))
+    setName(''); load(); notify(t('workStations.created'))
+  }
+  const remove = async (station) => { await apiFetch(`/api/work-stations/${station.id}`, { method: 'DELETE' }); load() }
+  return <>
+    <div className="page-heading"><div><span className="eyebrow">{t('workStations.eyebrow')}</span><h1>{t('workStations.heading')}</h1><p>{t('workStations.subtitle')}</p></div></div>
+    <form className="inline-form" onSubmit={create}>
+      <input required value={name} onChange={e => setName(e.target.value)} placeholder={t('workStations.namePlaceholder')} />
+      <select value={type} onChange={e => setType(e.target.value)}>{workStationTypeKeys.map(k => <option key={k} value={k}>{t(`workStations.type_${k}`)}</option>)}</select>
+      <button className="primary">{t('workStations.add')}</button>
+    </form>
+    <div className="crm-metrics">
+      {stations.map(s => <div key={s.id} className={s.occupying_order_id ? '' : ''}>
+        <strong className={s.occupying_order_id ? 'coral' : 'green-text'} style={{ display: 'block' }}>{s.occupying_order_id ? t('workStations.occupied') : t('workStations.free')}</strong>
+        <span>{s.name} · {t(`workStations.type_${s.type}`)}</span>
+        {s.occupying_order_id && <span style={{ display: 'block', marginTop: 4 }}>{s.occupying_order_number} · {s.occupying_plate} · {s.occupying_client_name}</span>}
+        {!s.occupying_order_id && <button type="button" className="text-btn" onClick={() => remove(s)}>{t('common.remove')}</button>}
+      </div>)}
+      {!stations.length && <p className="empty-hint">{t('workStations.empty')}</p>}
+    </div>
   </>
 }
 
@@ -1504,6 +1585,46 @@ function WhatsappIntegrationForm({ notify }) {
   </form>
 }
 
+function TotpSection({ notify }) {
+  const { t } = useTranslation()
+  const [enabled, setEnabled] = useState(null)
+  const [setup, setSetup] = useState(null)
+  const [code, setCode] = useState('')
+  const load = useCallback(() => apiFetch('/api/auth/me').then(r => r.json()).then(d => setEnabled(!!d.totp_enabled)).catch(() => {}), [])
+  useEffect(() => { load() }, [load])
+  const startSetup = async () => {
+    const res = await apiFetch('/api/auth/totp/setup', { method: 'POST' })
+    if (res.ok) setSetup(await res.json())
+  }
+  const confirmEnable = async (e) => {
+    e.preventDefault()
+    const res = await apiFetch('/api/auth/totp/enable', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) })
+    const data = await res.json()
+    if (!res.ok) return notify(data.error || t('settings.totpInvalidCode'))
+    setSetup(null); setCode(''); load(); notify(t('settings.totpEnabled'))
+  }
+  const disable = async () => {
+    await apiFetch('/api/auth/totp/disable', { method: 'POST' })
+    load(); notify(t('settings.totpDisabled'))
+  }
+  if (enabled === null) return null
+  return <div className="settings-section">
+    <h3>{t('settings.totpTitle')}</h3>
+    {enabled ? <>
+      <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 12px' }}>{t('settings.totpEnabledHint')}</p>
+      <button type="button" className="text-btn danger" onClick={disable}>{t('settings.totpDisableAction')}</button>
+    </> : setup ? <form onSubmit={confirmEnable}>
+      <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 8px' }}>{t('settings.totpSetupHint')}</p>
+      <code style={{ display: 'block', background: '#f5f8fd', padding: '10px 12px', borderRadius: 7, fontSize: 13, letterSpacing: 1, margin: '0 0 12px', wordBreak: 'break-all' }}>{setup.secret}</code>
+      <label style={{ display: 'grid', gap: 6, fontSize: 11, fontWeight: 700, color: '#536276', marginBottom: 10 }}>{t('settings.totpCodeLabel')}<input required inputMode="numeric" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} placeholder="000000" /></label>
+      <button type="submit" className="primary">{t('settings.totpConfirm')}</button>
+    </form> : <>
+      <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 12px' }}>{t('settings.totpDisabledHint')}</p>
+      <button type="button" className="secondary" onClick={startSetup}>{t('settings.totpEnableAction')}</button>
+    </>}
+  </div>
+}
+
 function SettingsModal({ onClose, user, onLogout }) {
   const { t } = useTranslation()
   const [toast, setToast] = useState('')
@@ -1523,6 +1644,7 @@ function SettingsModal({ onClose, user, onLogout }) {
       <div className="settings-row"><span>{t('settings.currency')}</span><b>{user.tenant_currency}</b></div>
       <div className="settings-row"><span>{t('settings.distanceUnit')}</span><b>{t(`settings.distanceUnit_${user.tenant_distance_unit}`, { defaultValue: user.tenant_distance_unit })}</b></div>
     </div>}
+    <TotpSection notify={notify} />
     {user.role === 'owner' && <div className="settings-section">
       <h3>{t('settings.whatsappIntegration')}</h3>
       <WhatsappIntegrationForm notify={notify} />
@@ -1540,15 +1662,17 @@ function LoginScreen({ onLogin, onBack }) {
   const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [totpCode, setTotpCode] = useState('')
+  const [totpRequired, setTotpRequired] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const submit = async (e) => {
     e.preventDefault()
     setLoading(true); setError('')
-    const res = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Lang': i18n.language }, body: JSON.stringify({ email, password }) })
+    const res = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Lang': i18n.language }, body: JSON.stringify({ email, password, totp_code: totpRequired ? totpCode : undefined }) })
     const data = await res.json().catch(() => ({}))
     setLoading(false)
-    if (!res.ok) return setError(data.error || t('login.error'))
+    if (!res.ok) { if (data.totp_required) setTotpRequired(true); return setError(data.error || t('login.error')) }
     onLogin(data)
   }
   return <div className="login-screen">
@@ -1558,8 +1682,9 @@ function LoginScreen({ onLogin, onBack }) {
       <h1>{t('login.title')}</h1>
       <p>{t('login.subtitle')}</p>
       {error && <div className="login-error">{error}</div>}
-      <label>{t('login.email')}<input type="email" required autoFocus value={email} onChange={e => setEmail(e.target.value)} /></label>
-      <label>{t('login.password')}<input type="password" required value={password} onChange={e => setPassword(e.target.value)} /></label>
+      <label>{t('login.email')}<input type="email" required autoFocus disabled={totpRequired} value={email} onChange={e => setEmail(e.target.value)} /></label>
+      <label>{t('login.password')}<input type="password" required disabled={totpRequired} value={password} onChange={e => setPassword(e.target.value)} /></label>
+      {totpRequired && <label>{t('login.totpCode')}<input required autoFocus inputMode="numeric" maxLength={6} value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))} placeholder="000000" /></label>}
       <button className="primary" disabled={loading}>{loading ? t('login.loading') : t('login.submit')}</button>
     </form>
   </div>

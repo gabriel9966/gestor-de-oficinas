@@ -1,6 +1,6 @@
 const messages = {
   pt: {
-    entity: { client: 'Cliente', vehicle: 'Veículo', order: 'Ordem de serviço', lead: 'Lead', employee: 'Funcionário', appointment: 'Agendamento', invoice: 'Fatura', message: 'Mensagem', notification: 'Notificação', reminder: 'Lembrete', automationRule: 'Regra de automação', automationFlow: 'Fluxo de automação', payment: 'Pagamento', tenant: 'Oficina', user: 'Usuário', catalogItem: 'Item do catálogo', supplier: 'Fornecedor', payable: 'Conta a pagar' },
+    entity: { client: 'Cliente', vehicle: 'Veículo', order: 'Ordem de serviço', lead: 'Lead', employee: 'Funcionário', appointment: 'Agendamento', invoice: 'Fatura', message: 'Mensagem', notification: 'Notificação', reminder: 'Lembrete', automationRule: 'Regra de automação', automationFlow: 'Fluxo de automação', payment: 'Pagamento', tenant: 'Oficina', user: 'Usuário', catalogItem: 'Item do catálogo', supplier: 'Fornecedor', payable: 'Conta a pagar', workStation: 'Estação de trabalho' },
     noValidFields: 'Nenhum campo válido para atualização.',
     employeeNameRoleRequired: 'Nome e função são obrigatórios.',
     appointmentRequiredFields: 'Cliente, título e data/hora são obrigatórios.',
@@ -80,10 +80,13 @@ const messages = {
     budgetRejected: 'Orçamento recusado. A oficina foi notificada.',
     whatsappIntegrationSaved: 'Integração de WhatsApp salva.',
     whatsappIntegrationInUse: 'Este número/instância já está em uso por outra oficina.',
+    workStationOccupied: 'Esta estação já está ocupada por outra OS.',
+    workStationNameRequired: 'Nome da estação é obrigatório.',
+    workStationNameRegistered: 'Já existe uma estação com este nome.',
     notFound: (name) => `${name} não encontrado.`,
   },
   es: {
-    entity: { client: 'Cliente', vehicle: 'Vehículo', order: 'Orden de servicio', lead: 'Cliente potencial', employee: 'Empleado', appointment: 'Cita', invoice: 'Factura', message: 'Mensaje', notification: 'Notificación', reminder: 'Recordatorio', automationRule: 'Regla de automatización', automationFlow: 'Flujo de automatización', payment: 'Pago', tenant: 'Taller', user: 'Usuario', catalogItem: 'Ítem del catálogo', supplier: 'Proveedor', payable: 'Cuenta por pagar' },
+    entity: { client: 'Cliente', vehicle: 'Vehículo', order: 'Orden de servicio', lead: 'Cliente potencial', employee: 'Empleado', appointment: 'Cita', invoice: 'Factura', message: 'Mensaje', notification: 'Notificación', reminder: 'Recordatorio', automationRule: 'Regla de automatización', automationFlow: 'Flujo de automatización', payment: 'Pago', tenant: 'Taller', user: 'Usuario', catalogItem: 'Ítem del catálogo', supplier: 'Proveedor', payable: 'Cuenta por pagar', workStation: 'Estación de trabajo' },
     noValidFields: 'Ningún campo válido para actualizar.',
     employeeNameRoleRequired: 'Nombre y función son obligatorios.',
     appointmentRequiredFields: 'Cliente, título y fecha/hora son obligatorios.',
@@ -163,10 +166,13 @@ const messages = {
     budgetRejected: 'Presupuesto rechazado. El taller fue notificado.',
     whatsappIntegrationSaved: 'Integración de WhatsApp guardada.',
     whatsappIntegrationInUse: 'Este número/instancia ya está en uso por otro taller.',
+    workStationOccupied: 'Esta estación ya está ocupada por otra OS.',
+    workStationNameRequired: 'El nombre de la estación es obligatorio.',
+    workStationNameRegistered: 'Ya existe una estación con este nombre.',
     notFound: (name) => `${name} no encontrado.`,
   },
   en: {
-    entity: { client: 'Client', vehicle: 'Vehicle', order: 'Service order', lead: 'Lead', employee: 'Employee', appointment: 'Appointment', invoice: 'Invoice', message: 'Message', notification: 'Notification', reminder: 'Reminder', automationRule: 'Automation rule', automationFlow: 'Automation flow', payment: 'Payment', tenant: 'Workshop', user: 'User', catalogItem: 'Catalog item', supplier: 'Supplier', payable: 'Payable' },
+    entity: { client: 'Client', vehicle: 'Vehicle', order: 'Service order', lead: 'Lead', employee: 'Employee', appointment: 'Appointment', invoice: 'Invoice', message: 'Message', notification: 'Notification', reminder: 'Reminder', automationRule: 'Automation rule', automationFlow: 'Automation flow', payment: 'Payment', tenant: 'Workshop', user: 'User', catalogItem: 'Catalog item', supplier: 'Supplier', payable: 'Payable', workStation: 'Work station' },
     noValidFields: 'No valid fields to update.',
     employeeNameRoleRequired: 'Name and role are required.',
     appointmentRequiredFields: 'Client, title and date/time are required.',
@@ -246,6 +252,9 @@ const messages = {
     budgetRejected: 'Quote rejected. The workshop has been notified.',
     whatsappIntegrationSaved: 'WhatsApp integration saved.',
     whatsappIntegrationInUse: 'This number/instance is already used by another workshop.',
+    workStationOccupied: 'This station is already occupied by another order.',
+    workStationNameRequired: "Station's name is required.",
+    workStationNameRegistered: 'A station with this name already exists.',
     notFound: (name) => `${name} not found.`,
   },
 }

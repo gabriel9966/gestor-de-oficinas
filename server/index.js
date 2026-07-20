@@ -2,7 +2,7 @@ import cors from 'cors'
 import express from 'express'
 import { randomBytes } from 'node:crypto'
 import { one, many, run } from './db.js'
-import { nextOrderNumber, nextInvoiceNumber, recalculateOrderTotal, recalculatePaymentStatus, ensureDefaultPipeline } from './database.js'
+import { nextOrderNumber, nextInvoiceNumber, recalculateOrderTotal, recalculatePaymentStatus, ensureDefaultPipeline, ensureDefaultCatalog, ensureDefaultWorkStations } from './database.js'
 import { sendExternalMessage } from './messaging.js'
 import { t, notFound } from './i18n.js'
 import { hashPassword, verifyPassword, signToken, authenticate, requireTenant, requireSuperAdmin } from './auth.js'
@@ -10,9 +10,10 @@ import { loginLimiter } from './security.js'
 import { logAudit } from './audit.js'
 import { createCheckoutSession, handleWebhookEvent } from './billing.js'
 const app = express(), port = Number(process.env.PORT || 3001)
+const APP_URL = process.env.PUBLIC_APP_URL || 'http://localhost:5173'
 const allowedOrigins = process.env.FRONTEND_ORIGIN ? process.env.FRONTEND_ORIGIN.split(',') : true
 app.use(cors({ origin: allowedOrigins })); app.use(express.json({ limit: '15mb' }))
-const orderSelect = `SELECT so.*,c.name client_name,c.phone client_phone,v.plate,v.brand,v.model,v.version,v.mileage vehicle_mileage,e.name mechanic_name FROM service_orders so JOIN clients c ON c.id=so.client_id JOIN vehicles v ON v.id=so.vehicle_id LEFT JOIN employees e ON e.id=so.mechanic_id`
+const orderSelect = `SELECT so.*,c.name client_name,c.phone client_phone,v.plate,v.brand,v.model,v.version,v.mileage vehicle_mileage,e.name mechanic_name,ws.name work_station_name FROM service_orders so JOIN clients c ON c.id=so.client_id JOIN vehicles v ON v.id=so.vehicle_id LEFT JOIN employees e ON e.id=so.mechanic_id LEFT JOIN work_stations ws ON ws.id=so.work_station_id`
 const plate = v => String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'')
 const slugify = s => String(s).trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')
 const stagesOf = pipeline => JSON.parse(pipeline.stages)
@@ -49,7 +50,8 @@ async function runAutomations(tenantId, module, field, value, entityId) {
   if (!context) return
   const recipient = module === 'service_orders' ? context.client_phone : context.phone
   if (!recipient) return
-  const placeholders = { '{cliente}': context.client_name || context.name || '', '{nome}': context.name || context.client_name || '', '{placa}': context.plate || '', '{veiculo}': [context.brand, context.model].filter(Boolean).join(' '), '{os}': context.number || '', '{etapa}': value, '{status}': value }
+  const approvalLink = module === 'service_orders' && /\{link_aprovacao\}/.test(rules.map(r => r.message_template).join('')) ? `${APP_URL}/orcamento/${await ensureOrderApprovalToken(context)}` : ''
+  const placeholders = { '{cliente}': context.client_name || context.name || '', '{nome}': context.name || context.client_name || '', '{placa}': context.plate || '', '{veiculo}': [context.brand, context.model].filter(Boolean).join(' '), '{os}': context.number || '', '{etapa}': value, '{status}': value, '{link_aprovacao}': approvalLink }
   for (const rule of rules) {
     const already = await one('SELECT id FROM automation_runs WHERE rule_id=? AND entity_id=?', [rule.id, entityId])
     if (already) continue
@@ -65,14 +67,15 @@ async function runAutomations(tenantId, module, field, value, entityId) {
   }
 }
 function flowContext(module, entityId) { return module === 'service_orders' ? one(`${orderSelect} WHERE so.id=?`, [entityId]) : one('SELECT * FROM leads WHERE id=?', [entityId]) }
-function resolveTemplate(template, context) {
-  const placeholders = { '{cliente}': context.client_name || context.name || '', '{placa}': context.plate || '', '{veiculo}': [context.brand, context.model].filter(Boolean).join(' '), '{os}': context.number || '', '{valor}': context.total_amount != null ? `R$ ${Number(context.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '' }
+async function resolveTemplate(template, context, module) {
+  const needsLink = module === 'service_orders' && /\{link_aprovacao\}/.test(template || '')
+  const placeholders = { '{cliente}': context.client_name || context.name || '', '{placa}': context.plate || '', '{veiculo}': [context.brand, context.model].filter(Boolean).join(' '), '{os}': context.number || '', '{valor}': context.total_amount != null ? `R$ ${Number(context.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '', '{link_aprovacao}': needsLink ? `${APP_URL}/orcamento/${await ensureOrderApprovalToken(context)}` : '' }
   return Object.entries(placeholders).reduce((text, [key, val]) => text.replaceAll(key, val), template || '')
 }
 async function sendFlowMessage(tenantId, module, context, step) {
   const recipient = module === 'service_orders' ? context.client_phone : context.phone
   if (!recipient) return
-  const content = resolveTemplate(step.template, context)
+  const content = await resolveTemplate(step.template, context, module)
   const leadId = module === 'leads' ? context.id : null, clientId = module === 'service_orders' ? context.client_id : null
   const r = await run("INSERT INTO crm_messages (tenant_id,lead_id,client_id,channel,direction,recipient,content,status) VALUES (?,?,?,?,'saida',?,?,'fila') RETURNING id", [tenantId, leadId, clientId, step.channel || 'whatsapp', recipient, content])
   sendExternalMessage({ channel: step.channel || 'whatsapp', recipient, content }).then(async result => {
@@ -130,7 +133,7 @@ app.post('/api/auth/login', loginLimiter, async (req,res)=>{
   const tenant=user.tenant_id?await one('SELECT * FROM tenants WHERE id=?', [user.tenant_id]):null
   const token=signToken({sub:user.id,name:user.name,email:user.email,role:user.role,tenant_id:user.tenant_id})
   await logAudit({tenantId:user.tenant_id,userId:user.id,action:'login',entity:'user',entityId:user.id})
-  res.json({token,user:{id:user.id,name:user.name,email:user.email,role:user.role,tenant_id:user.tenant_id,tenant_name:tenant?.name||null,tenant_plan:tenant?.plan||null,tenant_currency:tenant?.currency||null,tenant_distance_unit:tenant?.distance_unit||null}})
+  res.json({token,user:{id:user.id,name:user.name,email:user.email,role:user.role,tenant_id:user.tenant_id,totp_enabled:!!user.totp_enabled,tenant_name:tenant?.name||null,tenant_plan:tenant?.plan||null,tenant_currency:tenant?.currency||null,tenant_distance_unit:tenant?.distance_unit||null}})
 })
 app.post('/api/auth/forgot-password', async (req,res)=>{
   const {email}=req.body
@@ -154,7 +157,7 @@ app.post('/api/auth/reset-password', async (req,res)=>{
   res.json({message:t(req,'passwordResetOk')})
 })
 app.use('/api',authenticate)
-app.get('/api/auth/me',async(req,res)=>{const tenant=req.user.tenant_id?await one('SELECT * FROM tenants WHERE id=?', [req.user.tenant_id]):null;res.json({...req.user,tenant_name:tenant?.name||null,tenant_plan:tenant?.plan||null,tenant_currency:tenant?.currency||null,tenant_distance_unit:tenant?.distance_unit||null})})
+app.get('/api/auth/me',async(req,res)=>{const tenant=req.user.tenant_id?await one('SELECT * FROM tenants WHERE id=?', [req.user.tenant_id]):null;const dbUser=await one('SELECT totp_enabled FROM users WHERE id=?', [req.user.id]);res.json({...req.user,totp_enabled:!!dbUser?.totp_enabled,tenant_name:tenant?.name||null,tenant_plan:tenant?.plan||null,tenant_currency:tenant?.currency||null,tenant_distance_unit:tenant?.distance_unit||null})})
 app.post('/api/auth/totp/setup',async(req,res)=>{
   const {generateTotpSecret,totpUri}=await import('./auth.js')
   const secret=generateTotpSecret()
@@ -206,6 +209,8 @@ app.post('/api/admin/tenants',requireSuperAdmin,async(req,res)=>{
   const w=await run("INSERT INTO tenants (name,plan,status,currency,distance_unit) VALUES (?,?,'trial',?,?) RETURNING id", [name.trim(),plan,currency,distance_unit])
   await run("INSERT INTO users (tenant_id,name,email,password_hash,role) VALUES (?,?,?,?,'owner') RETURNING id", [w.lastInsertRowid,owner_name.trim(),owner_email.trim().toLowerCase(),hashPassword(owner_password)])
   await ensureDefaultPipeline(w.lastInsertRowid)
+  await ensureDefaultCatalog(w.lastInsertRowid)
+  await ensureDefaultWorkStations(w.lastInsertRowid)
   await logAudit({tenantId:null,userId:req.user.id,action:'tenant_created',entity:'tenant',entityId:w.lastInsertRowid})
   res.status(201).json(await one('SELECT * FROM tenants WHERE id=?', [w.lastInsertRowid]))
 })
@@ -401,7 +406,7 @@ app.post('/api/checkin',async(req,res)=>{
   }
   res.status(201).json(await one(`${orderSelect} WHERE so.id=?`, [created.lastInsertRowid]))
 })
-app.patch('/api/orders/:id',async(req,res)=>{const allowed=['status','priority','mechanic_id','diagnosis','solution','internal_notes','discount','paid_amount','payment_status','payment_method','mileage_out','estimated_delivery_at','completed_at','delivered_at'],entries=Object.entries(req.body).filter(([k])=>allowed.includes(k));if(!entries.length)return res.status(400).json({error:t(req,'noValidFields')});const order=await one('SELECT * FROM service_orders WHERE (id::text=? OR number=?) AND tenant_id=?', [req.params.id,req.params.id,req.tenantId]);if(!order)return missing(req,res,'order');await run(`UPDATE service_orders SET ${entries.map(([k])=>`${k}=?`).join(',')},updated_at=now_text() WHERE id=?`, [...entries.map(([,v])=>v),order.id]);if(req.body.mileage_out)await run('UPDATE vehicles SET mileage=?,updated_at=now_text() WHERE id=?', [req.body.mileage_out,order.vehicle_id]);if(req.body.status){await run('INSERT INTO vehicle_history (tenant_id,vehicle_id,service_order_id,event_type,description,mileage) VALUES (?,?,?,?,?,?) RETURNING id', [req.tenantId,order.vehicle_id,order.id,'status',`OS alterada para: ${req.body.status}.`,req.body.mileage_out||order.mileage_in]);await runAutomations(req.tenantId,'service_orders','status',req.body.status,order.id);await startFlows(req.tenantId,'service_orders','status',req.body.status,order.id)}if(req.body.discount!==undefined)await recalculateOrderTotal(order.id);res.json(await one(`${orderSelect} WHERE so.id=?`, [order.id]))})
+app.patch('/api/orders/:id',async(req,res)=>{const allowed=['status','priority','mechanic_id','diagnosis','solution','internal_notes','discount','paid_amount','payment_status','payment_method','mileage_out','estimated_delivery_at','completed_at','delivered_at','work_station_id'],entries=Object.entries(req.body).filter(([k])=>allowed.includes(k));if(!entries.length)return res.status(400).json({error:t(req,'noValidFields')});const order=await one('SELECT * FROM service_orders WHERE (id::text=? OR number=?) AND tenant_id=?', [req.params.id,req.params.id,req.tenantId]);if(!order)return missing(req,res,'order');if(req.body.work_station_id){const occupied=await one("SELECT id FROM service_orders WHERE work_station_id=? AND id!=? AND status NOT IN ('entregue','cancelada')", [req.body.work_station_id,order.id]);if(occupied)return res.status(409).json({error:t(req,'workStationOccupied')})}await run(`UPDATE service_orders SET ${entries.map(([k])=>`${k}=?`).join(',')},updated_at=now_text() WHERE id=?`, [...entries.map(([,v])=>v),order.id]);if(req.body.mileage_out)await run('UPDATE vehicles SET mileage=?,updated_at=now_text() WHERE id=?', [req.body.mileage_out,order.vehicle_id]);if(req.body.status){await run('INSERT INTO vehicle_history (tenant_id,vehicle_id,service_order_id,event_type,description,mileage) VALUES (?,?,?,?,?,?) RETURNING id', [req.tenantId,order.vehicle_id,order.id,'status',`OS alterada para: ${req.body.status}.`,req.body.mileage_out||order.mileage_in]);await runAutomations(req.tenantId,'service_orders','status',req.body.status,order.id);await startFlows(req.tenantId,'service_orders','status',req.body.status,order.id)}if(req.body.discount!==undefined)await recalculateOrderTotal(order.id);res.json(await one(`${orderSelect} WHERE so.id=?`, [order.id]))})
 app.post('/api/orders/:id/items',async(req,res)=>{
   const order=await one('SELECT * FROM service_orders WHERE (id::text=? OR number=?) AND tenant_id=?', [req.params.id,req.params.id,req.tenantId])
   if(!order)return missing(req,res,'order')
@@ -486,6 +491,24 @@ app.patch('/api/team/:id',requireOwner,async(req,res)=>{const member=await one('
 app.post('/api/vehicles/:id/public-link',async(req,res)=>{const vehicle=await one('SELECT * FROM vehicles WHERE id=? AND tenant_id=?', [req.params.id,req.tenantId]);if(!vehicle)return missing(req,res,'vehicle');const token=await ensureVehicleToken(vehicle);res.json({token,path:`/v/${token}`})})
 app.post('/api/orders/:id/approval-link',async(req,res)=>{const order=await one('SELECT * FROM service_orders WHERE (id::text=? OR number=?) AND tenant_id=?', [req.params.id,req.params.id,req.tenantId]);if(!order)return missing(req,res,'order');const token=await ensureOrderApprovalToken(order);res.json({token,path:`/orcamento/${token}`})})
 app.patch('/api/workshop/whatsapp-integration',requireOwner,async(req,res)=>{const {whatsapp_phone_id=null,whatsapp_instance=null}=req.body;try{await run('UPDATE tenants SET whatsapp_phone_id=?,whatsapp_instance=? WHERE id=?', [whatsapp_phone_id||null,whatsapp_instance||null,req.tenantId]);res.json({message:t(req,'whatsappIntegrationSaved')})}catch{res.status(409).json({error:t(req,'whatsappIntegrationInUse')})}})
+
+const workStationSelect = `SELECT ws.*,so.id occupying_order_id,so.number occupying_order_number,v.plate occupying_plate,c.name occupying_client_name FROM work_stations ws LEFT JOIN service_orders so ON so.work_station_id=ws.id AND so.status NOT IN ('entregue','cancelada') LEFT JOIN vehicles v ON v.id=so.vehicle_id LEFT JOIN clients c ON c.id=so.client_id`
+app.get('/api/work-stations',async(req,res)=>res.json(await many(`${workStationSelect} WHERE ws.tenant_id=? AND ws.active=1 ORDER BY ws.name`, [req.tenantId])))
+app.post('/api/work-stations',async(req,res)=>{const {name,type='box',notes=null}=req.body;if(!name?.trim())return res.status(400).json({error:t(req,'workStationNameRequired')});if(!['box','elevador','patio'].includes(type))return res.status(400).json({error:t(req,'noValidFields')});try{const r=await run('INSERT INTO work_stations (tenant_id,name,type,notes) VALUES (?,?,?,?) RETURNING id', [req.tenantId,name.trim(),type,notes]);res.status(201).json(await one('SELECT * FROM work_stations WHERE id=?', [r.lastInsertRowid]))}catch{res.status(409).json({error:t(req,'workStationNameRegistered')})}})
+app.patch('/api/work-stations/:id',async(req,res)=>{const allowed=['name','type','notes','active'],entries=Object.entries(req.body).filter(([k])=>allowed.includes(k));if(!entries.length)return res.status(400).json({error:t(req,'noValidFields')});const station=await one('SELECT id FROM work_stations WHERE id=? AND tenant_id=?', [req.params.id,req.tenantId]);if(!station)return missing(req,res,'workStation');try{await run(`UPDATE work_stations SET ${entries.map(([k])=>`${k}=?`).join(',')} WHERE id=?`, [...entries.map(([k,v])=>k==='active'?(v?1:0):v),station.id]);res.json(await one('SELECT * FROM work_stations WHERE id=?', [station.id]))}catch{res.status(409).json({error:t(req,'workStationNameRegistered')})}})
+app.delete('/api/work-stations/:id',async(req,res)=>{const r=await run('DELETE FROM work_stations WHERE id=? AND tenant_id=?', [req.params.id,req.tenantId]);if(!r.changes)return missing(req,res,'workStation');res.json({message:'Estação removida.'})})
+
+app.get('/api/reports/cashflow',async(req,res)=>{
+  const months=Math.min(24,Math.max(1,Number(req.query.months)||6))
+  const revenueRows=await many(`SELECT to_char(created_at::timestamp,'YYYY-MM') AS ym,COALESCE(SUM(amount),0) total FROM payments WHERE tenant_id=? AND created_at::timestamp>=timezone('UTC',now())-((?||' months')::interval) GROUP BY 1`, [req.tenantId,months])
+  const expenseRows=await many(`SELECT to_char(paid_at::timestamp,'YYYY-MM') AS ym,COALESCE(SUM(amount),0) total FROM payables WHERE tenant_id=? AND status='pago' AND paid_at IS NOT NULL AND paid_at::timestamp>=timezone('UTC',now())-((?||' months')::interval) GROUP BY 1`, [req.tenantId,months])
+  const revenueMap=Object.fromEntries(revenueRows.map(r=>[r.ym,Number(r.total)]))
+  const expenseMap=Object.fromEntries(expenseRows.map(r=>[r.ym,Number(r.total)]))
+  const now=new Date(),series=[]
+  for(let i=months-1;i>=0;i--){const d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()-i,1));const key=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;const revenue=revenueMap[key]||0,expenses=expenseMap[key]||0;series.push({month:key,revenue,expenses,balance:revenue-expenses})}
+  const openPayables=(await one("SELECT COALESCE(SUM(amount),0) total FROM payables WHERE tenant_id=? AND status='pendente'", [req.tenantId])).total
+  res.json({series,totals:{revenue:series.reduce((s,m)=>s+m.revenue,0),expenses:series.reduce((s,m)=>s+m.expenses,0),balance:series.reduce((s,m)=>s+m.balance,0),open_payables:Number(openPayables)}})
+})
 
 // Webhooks ficam fora do prefixo /api de propósito (callbacks externos do Meta/Evolution, sem token de sessão nosso pra validar).
 app.get('/webhooks/meta',(req,res)=>{const mode=req.query['hub.mode'],token=req.query['hub.verify_token'],challenge=req.query['hub.challenge'];if(mode==='subscribe'&&token&&token===process.env.META_WEBHOOK_VERIFY_TOKEN)return res.status(200).send(challenge);res.sendStatus(403)})

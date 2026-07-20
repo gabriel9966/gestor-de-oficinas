@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS catalog_items (id SERIAL PRIMARY KEY, tenant_id INTEG
 CREATE TABLE IF NOT EXISTS stock_movements (id SERIAL PRIMARY KEY, tenant_id INTEGER NOT NULL DEFAULT 1, catalog_item_id INTEGER NOT NULL REFERENCES catalog_items(id) ON DELETE CASCADE, delta REAL NOT NULL, reason TEXT NOT NULL, service_order_id INTEGER REFERENCES service_orders(id) ON DELETE SET NULL, created_at TEXT DEFAULT now_text());
 CREATE TABLE IF NOT EXISTS suppliers (id SERIAL PRIMARY KEY, tenant_id INTEGER NOT NULL DEFAULT 1, name TEXT NOT NULL, document TEXT, phone TEXT, email TEXT, notes TEXT, active INTEGER NOT NULL DEFAULT 1, created_at TEXT DEFAULT now_text());
 CREATE TABLE IF NOT EXISTS payables (id SERIAL PRIMARY KEY, tenant_id INTEGER NOT NULL DEFAULT 1, supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL, description TEXT NOT NULL, amount REAL NOT NULL, due_date TEXT, status TEXT NOT NULL DEFAULT 'pendente' CHECK(status IN ('pendente','pago')), paid_at TEXT, created_at TEXT DEFAULT now_text());
+CREATE TABLE IF NOT EXISTS work_stations (id SERIAL PRIMARY KEY, tenant_id INTEGER NOT NULL DEFAULT 1, name TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'box' CHECK(type IN ('box','elevador','patio')), notes TEXT, active INTEGER NOT NULL DEFAULT 1, created_at TEXT DEFAULT now_text(), UNIQUE(tenant_id, name));
 CREATE INDEX IF NOT EXISTS idx_catalog_tenant_type ON catalog_items(tenant_id, type);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(catalog_item_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_suppliers_tenant ON suppliers(tenant_id);
@@ -59,7 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_appointments_mechanic ON appointments(mechanic_id
 CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_logs(tenant_id, created_at DESC);
 `)
-const tenantTables = ['clients','vehicles','employees','service_orders','order_items','vehicle_history','reminders','notification_logs','pipelines','leads','crm_activities','crm_messages','automation_rules','automation_runs','invoices','invoice_items','vehicle_owners','checklists','appointments','automation_flows','flow_runs','payments','catalog_items','suppliers','payables']
+const tenantTables = ['clients','vehicles','employees','service_orders','order_items','vehicle_history','reminders','notification_logs','pipelines','leads','crm_activities','crm_messages','automation_rules','automation_runs','invoices','invoice_items','vehicle_owners','checklists','appointments','automation_flows','flow_runs','payments','catalog_items','suppliers','payables','work_stations']
 for (const table of tenantTables) await exec(`CREATE INDEX IF NOT EXISTS idx_${table}_tenant ON ${table}(tenant_id)`)
 
 // Colunas novas em tabelas que já existiam antes desta rodada de features — ADD COLUMN IF NOT EXISTS é idempotente entre reinícios.
@@ -68,6 +69,7 @@ await exec(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS public_token TEXT UNIQ
 await exec(`ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS approval_token TEXT UNIQUE`)
 await exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS whatsapp_phone_id TEXT UNIQUE`)
 await exec(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS whatsapp_instance TEXT UNIQUE`)
+await exec(`ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS work_station_id INTEGER REFERENCES work_stations(id) ON DELETE SET NULL`)
 // 'staff' passa a ser um papel válido pra permitir múltiplos logins por oficina (owner convida a equipe).
 await exec(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`)
 await exec(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('owner','staff','super_admin'))`)
@@ -94,6 +96,24 @@ export async function ensureDefaultPipeline(tenantId) {
 }
 const defaultPipeline = await ensureDefaultPipeline(1)
 await run('UPDATE leads SET pipeline_id=? WHERE pipeline_id IS NULL', [defaultPipeline.id])
+
+const defaultCatalogSeed = [
+  ['servico', 'Troca de óleo'], ['servico', 'Alinhamento e balanceamento'], ['servico', 'Revisão geral'],
+  ['servico', 'Troca de pastilhas de freio'], ['servico', 'Diagnóstico eletrônico'], ['servico', 'Higienização de ar-condicionado'],
+  ['peca', 'Óleo motor sintético 1L'], ['peca', 'Filtro de óleo'], ['peca', 'Filtro de ar'], ['peca', 'Filtro de combustível'],
+  ['peca', 'Pastilha de freio dianteira'], ['peca', 'Pastilha de freio traseira'], ['peca', 'Disco de freio'],
+  ['peca', 'Correia dentada'], ['peca', 'Vela de ignição'], ['peca', 'Bateria automotiva'],
+]
+export async function ensureDefaultCatalog(tenantId) {
+  if (await one('SELECT id FROM catalog_items WHERE tenant_id=? LIMIT 1', [tenantId])) return
+  for (const [type, name] of defaultCatalogSeed) await run('INSERT INTO catalog_items (tenant_id,type,name,track_stock) VALUES (?,?,?,?) RETURNING id', [tenantId, type, name, type === 'peca' ? 1 : 0])
+}
+export async function ensureDefaultWorkStations(tenantId) {
+  if (await one('SELECT id FROM work_stations WHERE tenant_id=? LIMIT 1', [tenantId])) return
+  for (const [name, type] of [['Box 1', 'box'], ['Box 2', 'box'], ['Elevador 1', 'elevador']]) await run('INSERT INTO work_stations (tenant_id,name,type) VALUES (?,?,?) RETURNING id', [tenantId, name, type])
+}
+await ensureDefaultCatalog(1)
+await ensureDefaultWorkStations(1)
 if (!(await one('SELECT id FROM clients LIMIT 1'))) {
   const c = await run('INSERT INTO clients (name,document,phone,email) VALUES (?,?,?,?) RETURNING id', ['Mariana Costa','123.456.789-09','(11) 99999-0101','mariana@exemplo.com'])
   const v = await run('INSERT INTO vehicles (client_id,plate,chassis,brand,model,version,year_model,fuel,mileage) VALUES (?,?,?,?,?,?,?,?,?) RETURNING id', [c.lastInsertRowid,'BRA2E19','9BWZZZ377VT004251','Honda','Civic','EXL 2.0',2020,'Flex',78240])

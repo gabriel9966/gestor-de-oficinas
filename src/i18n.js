@@ -4,12 +4,12 @@ import { initReactI18next } from 'react-i18next'
 const resources = {
   pt: { translation: {
     appName: 'Oficina', appNamePro: 'Pro',
-    nav: { dashboard: 'Visão geral', orders: 'Ordens de serviço', crm: 'CRM & Leads', messages: 'Mensagens', clients: 'Clientes', vehicles: 'Veículos', catalog: 'Estoque', agenda: 'Agenda', financial: 'Financeiro' },
+    nav: { dashboard: 'Visão geral', orders: 'Ordens de serviço', crm: 'CRM & Leads', messages: 'Mensagens', clients: 'Clientes', vehicles: 'Veículos', catalog: 'Estoque', stations: 'Boxes', agenda: 'Agenda', financial: 'Financeiro' },
     sidebar: { workshopLabel: 'OFICINA ATUAL', workshopName: 'Auto Center Prime', workshopLocation: 'São Paulo, SP', team: 'Equipe', automations: 'Automações', adminName: 'Lucas Pereira', adminRole: 'Administrador', logins: 'Usuários', calculator: 'Calculadora' },
     search: { placeholder: 'Buscar placa, cliente, CPF ou OS...' },
     notifications: { title: 'Notificações pendentes', empty: 'Nenhuma notificação pendente.' },
-    settings: { title: 'CONFIGURAÇÕES', heading: 'Configurações da conta', account: 'Conta', name: 'Nome', email: 'E-mail', role: 'Função', workshop: 'Oficina', location: 'Localização', language: 'Idioma', logout: 'Sair', plan: 'Plano', currency: 'Moeda', distanceUnit: 'Unidade de distância', distanceUnit_KM: 'Quilômetros (KM)', distanceUnit_MI: 'Milhas (MI)', whatsappIntegration: 'Integração de WhatsApp', whatsappIntegrationHint: 'Preencha o ID do número (Meta) ou o nome da instância (Evolution API) usado pela sua oficina, pra mensagens recebidas caírem automaticamente aqui.', whatsappPhoneId: 'ID do número (Meta Business)', whatsappInstance: 'Instância (Evolution API)', whatsappSaved: 'Integração salva.' },
-    login: { title: 'Entrar', subtitle: 'Acesse o painel da sua oficina.', email: 'E-mail', password: 'Senha', submit: 'Entrar', loading: 'Entrando...', error: 'Não foi possível entrar. Tente novamente.', back: '← Voltar ao site' },
+    settings: { title: 'CONFIGURAÇÕES', heading: 'Configurações da conta', account: 'Conta', name: 'Nome', email: 'E-mail', role: 'Função', workshop: 'Oficina', location: 'Localização', language: 'Idioma', logout: 'Sair', plan: 'Plano', currency: 'Moeda', distanceUnit: 'Unidade de distância', distanceUnit_KM: 'Quilômetros (KM)', distanceUnit_MI: 'Milhas (MI)', whatsappIntegration: 'Integração de WhatsApp', whatsappIntegrationHint: 'Preencha o ID do número (Meta) ou o nome da instância (Evolution API) usado pela sua oficina, pra mensagens recebidas caírem automaticamente aqui.', whatsappPhoneId: 'ID do número (Meta Business)', whatsappInstance: 'Instância (Evolution API)', whatsappSaved: 'Integração salva.', totpTitle: 'Autenticação em duas etapas (2FA)', totpEnabledHint: 'Ativada. Seu login pede um código do autenticador a cada acesso.', totpDisableAction: 'Desativar 2FA', totpSetupHint: 'Copie a chave abaixo e cole no seu app autenticador (Google Authenticator, Authy etc.) em "Adicionar conta > Digitar chave de configuração". Depois digite o código de 6 dígitos gerado.', totpCodeLabel: 'Código de 6 dígitos', totpConfirm: 'Confirmar e ativar', totpDisabledHint: 'Desativada. Ative pra exigir um código extra no login, além da senha.', totpEnableAction: 'Ativar 2FA', totpInvalidCode: 'Código inválido.', totpEnabled: '2FA ativada com sucesso.', totpDisabled: '2FA desativada.' },
+    login: { title: 'Entrar', subtitle: 'Acesse o painel da sua oficina.', email: 'E-mail', password: 'Senha', submit: 'Entrar', loading: 'Entrando...', error: 'Não foi possível entrar. Tente novamente.', back: '← Voltar ao site', totpCode: 'Código do autenticador' },
     landing: {
       navLogin: 'Entrar', navContact: 'Fale com a gente', navFeatures: 'Recursos', navPricing: 'Planos', navFaq: 'Dúvidas',
       badge: 'Novo · Plataforma SaaS multi-oficina',
@@ -93,6 +93,7 @@ const resources = {
       cannotIssueInvoice: 'Não foi possível emitir a fatura.', invoiceIssued: 'Fatura {{number}} emitida — {{amount}}.',
       noClientPhone: 'Cliente sem telefone cadastrado.', budgetMessage: 'Olá, {{client}}! Segue o orçamento da OS {{order}} ({{vehicle}}): total previsto {{amount}}. Podemos prosseguir?', cannotSendBudget: 'Não foi possível enviar o orçamento.', budgetSent: 'Orçamento enviado ao cliente via WhatsApp.',
       copyApprovalLink: 'Copiar link de aprovação',
+      cannotAssignStation: 'Não foi possível atribuir a estação.', workStation: 'Box / elevador', noStation: 'Sem atribuição',
     },
     checkin: {
       quickTitle: 'CHECK-IN RÁPIDO', title: 'Nova ordem de serviço', intro: 'Digite a placa primeiro — se o veículo já tiver histórico, os dados são preenchidos automaticamente.',
@@ -175,7 +176,17 @@ const resources = {
       issuedInvoices: 'Faturas emitidas', totalInvoiced: 'Total faturado',
       numberCol: 'NÚMERO', orderCol: 'OS', clientCol: 'CLIENTE', laborPartsCol: 'MÃO DE OBRA / PEÇAS', totalCol: 'TOTAL', statusCol: 'STATUS',
       cancel: 'Cancelar', canceled: 'Fatura cancelada.', noInvoices: 'Nenhuma fatura emitida ainda. Emita uma pelo painel de detalhes de uma OS.',
-      tabInvoices: 'Faturas', tabSuppliers: 'Fornecedores', tabPayables: 'Contas a pagar',
+      tabInvoices: 'Faturas', tabSuppliers: 'Fornecedores', tabPayables: 'Contas a pagar', tabReports: 'Relatório',
+    },
+    reports: {
+      revenue6m: 'Receita (6 meses)', expenses6m: 'Despesas (6 meses)', balance6m: 'Saldo (6 meses)', openPayables: 'Contas a pagar em aberto',
+      monthlyTitle: 'Receita x despesas por mês', revenue: 'Receita', expenses: 'Despesas',
+    },
+    workStations: {
+      eyebrow: 'BOXES', heading: 'Boxes e elevadores', subtitle: 'Controle de ocupação dos espaços físicos da oficina.',
+      namePlaceholder: 'Nome do box/elevador', add: 'Adicionar', created: 'Estação cadastrada.', cannotSave: 'Não foi possível salvar a estação.',
+      type_box: 'Box', type_elevador: 'Elevador', type_patio: 'Pátio',
+      occupied: 'Ocupado', free: 'Livre', empty: 'Nenhuma estação cadastrada ainda.',
     },
     employees: {
       title: 'EQUIPE', heading: 'Mecânicos e funcionários', intro: 'Cadastre a equipe para atribuir mecânicos em ordens de serviço e na agenda.',
@@ -243,12 +254,12 @@ const resources = {
   } },
   es: { translation: {
     appName: 'Oficina', appNamePro: 'Pro',
-    nav: { dashboard: 'Resumen', orders: 'Órdenes de servicio', crm: 'CRM y clientes potenciales', messages: 'Mensajes', clients: 'Clientes', vehicles: 'Vehículos', catalog: 'Inventario', agenda: 'Agenda', financial: 'Finanzas' },
+    nav: { dashboard: 'Resumen', orders: 'Órdenes de servicio', crm: 'CRM y clientes potenciales', messages: 'Mensajes', clients: 'Clientes', vehicles: 'Vehículos', catalog: 'Inventario', stations: 'Boxes', agenda: 'Agenda', financial: 'Finanzas' },
     sidebar: { workshopLabel: 'TALLER ACTUAL', workshopName: 'Auto Center Prime', workshopLocation: 'São Paulo, SP', team: 'Equipo', automations: 'Automatizaciones', adminName: 'Lucas Pereira', adminRole: 'Administrador', logins: 'Usuarios', calculator: 'Calculadora' },
     search: { placeholder: 'Buscar matrícula, cliente, documento u OS...' },
     notifications: { title: 'Notificaciones pendientes', empty: 'No hay notificaciones pendientes.' },
-    settings: { title: 'CONFIGURACIÓN', heading: 'Configuración de la cuenta', account: 'Cuenta', name: 'Nombre', email: 'Correo electrónico', role: 'Función', workshop: 'Taller', location: 'Ubicación', language: 'Idioma', logout: 'Cerrar sesión', plan: 'Plan', currency: 'Moneda', distanceUnit: 'Unidad de distancia', distanceUnit_KM: 'Kilómetros (KM)', distanceUnit_MI: 'Millas (MI)', whatsappIntegration: 'Integración de WhatsApp', whatsappIntegrationHint: 'Complete el ID del número (Meta) o el nombre de la instancia (Evolution API) usado por su taller, para que los mensajes recibidos lleguen automáticamente aquí.', whatsappPhoneId: 'ID del número (Meta Business)', whatsappInstance: 'Instancia (Evolution API)', whatsappSaved: 'Integración guardada.' },
-    login: { title: 'Entrar', subtitle: 'Accede al panel de tu taller.', email: 'Correo electrónico', password: 'Contraseña', submit: 'Entrar', loading: 'Entrando...', error: 'No fue posible entrar. Inténtelo de nuevo.', back: '← Volver al sitio' },
+    settings: { title: 'CONFIGURACIÓN', heading: 'Configuración de la cuenta', account: 'Cuenta', name: 'Nombre', email: 'Correo electrónico', role: 'Función', workshop: 'Taller', location: 'Ubicación', language: 'Idioma', logout: 'Cerrar sesión', plan: 'Plan', currency: 'Moneda', distanceUnit: 'Unidad de distancia', distanceUnit_KM: 'Kilómetros (KM)', distanceUnit_MI: 'Millas (MI)', whatsappIntegration: 'Integración de WhatsApp', whatsappIntegrationHint: 'Complete el ID del número (Meta) o el nombre de la instancia (Evolution API) usado por su taller, para que los mensajes recibidos lleguen automáticamente aquí.', whatsappPhoneId: 'ID del número (Meta Business)', whatsappInstance: 'Instancia (Evolution API)', whatsappSaved: 'Integración guardada.', totpTitle: 'Autenticación en dos pasos (2FA)', totpEnabledHint: 'Activada. Su inicio de sesión pide un código del autenticador en cada acceso.', totpDisableAction: 'Desactivar 2FA', totpSetupHint: 'Copie la clave abajo y péguela en su app autenticadora (Google Authenticator, Authy, etc.) en "Agregar cuenta > Ingresar clave de configuración". Luego escriba el código de 6 dígitos generado.', totpCodeLabel: 'Código de 6 dígitos', totpConfirm: 'Confirmar y activar', totpDisabledHint: 'Desactivada. Actívela para exigir un código extra en el inicio de sesión, además de la contraseña.', totpEnableAction: 'Activar 2FA', totpInvalidCode: 'Código inválido.', totpEnabled: '2FA activada con éxito.', totpDisabled: '2FA desactivada.' },
+    login: { title: 'Entrar', subtitle: 'Accede al panel de tu taller.', email: 'Correo electrónico', password: 'Contraseña', submit: 'Entrar', loading: 'Entrando...', error: 'No fue posible entrar. Inténtelo de nuevo.', back: '← Volver al sitio', totpCode: 'Código del autenticador' },
     landing: {
       navLogin: 'Entrar', navContact: 'Hable con nosotros', navFeatures: 'Funcionalidades', navPricing: 'Planes', navFaq: 'Preguntas',
       badge: 'Nuevo · Plataforma SaaS multi-taller',
@@ -332,6 +343,7 @@ const resources = {
       cannotIssueInvoice: 'No se pudo emitir la factura.', invoiceIssued: 'Factura {{number}} emitida — {{amount}}.',
       noClientPhone: 'Cliente sin teléfono registrado.', budgetMessage: 'Hola, {{client}}! Aquí está el presupuesto de la OS {{order}} ({{vehicle}}): total previsto {{amount}}. ¿Podemos continuar?', cannotSendBudget: 'No se pudo enviar el presupuesto.', budgetSent: 'Presupuesto enviado al cliente por WhatsApp.',
       copyApprovalLink: 'Copiar enlace de aprobación',
+      cannotAssignStation: 'No se pudo asignar la estación.', workStation: 'Box / elevador', noStation: 'Sin asignación',
     },
     checkin: {
       quickTitle: 'CHECK-IN RÁPIDO', title: 'Nueva orden de servicio', intro: 'Escriba la matrícula primero — si el vehículo ya tiene historial, los datos se completan automáticamente.',
@@ -414,7 +426,17 @@ const resources = {
       issuedInvoices: 'Facturas emitidas', totalInvoiced: 'Total facturado',
       numberCol: 'NÚMERO', orderCol: 'OS', clientCol: 'CLIENTE', laborPartsCol: 'MANO DE OBRA / REPUESTOS', totalCol: 'TOTAL', statusCol: 'ESTADO',
       cancel: 'Cancelar', canceled: 'Factura cancelada.', noInvoices: 'Aún no hay facturas emitidas. Emita una desde el panel de detalles de una OS.',
-      tabInvoices: 'Facturas', tabSuppliers: 'Proveedores', tabPayables: 'Cuentas por pagar',
+      tabInvoices: 'Facturas', tabSuppliers: 'Proveedores', tabPayables: 'Cuentas por pagar', tabReports: 'Informe',
+    },
+    reports: {
+      revenue6m: 'Ingresos (6 meses)', expenses6m: 'Gastos (6 meses)', balance6m: 'Saldo (6 meses)', openPayables: 'Cuentas por pagar pendientes',
+      monthlyTitle: 'Ingresos x gastos por mes', revenue: 'Ingresos', expenses: 'Gastos',
+    },
+    workStations: {
+      eyebrow: 'BOXES', heading: 'Boxes y elevadores', subtitle: 'Control de ocupación de los espacios físicos del taller.',
+      namePlaceholder: 'Nombre del box/elevador', add: 'Agregar', created: 'Estación registrada.', cannotSave: 'No se pudo guardar la estación.',
+      type_box: 'Box', type_elevador: 'Elevador', type_patio: 'Patio',
+      occupied: 'Ocupado', free: 'Libre', empty: 'Aún no hay estaciones registradas.',
     },
     employees: {
       title: 'EQUIPO', heading: 'Mecánicos y empleados', intro: 'Registre al equipo para asignar mecánicos en órdenes de servicio y en la agenda.',
@@ -482,12 +504,12 @@ const resources = {
   } },
   en: { translation: {
     appName: 'Oficina', appNamePro: 'Pro',
-    nav: { dashboard: 'Overview', orders: 'Service orders', crm: 'CRM & Leads', messages: 'Messages', clients: 'Clients', vehicles: 'Vehicles', catalog: 'Inventory', agenda: 'Schedule', financial: 'Financials' },
+    nav: { dashboard: 'Overview', orders: 'Service orders', crm: 'CRM & Leads', messages: 'Messages', clients: 'Clients', vehicles: 'Vehicles', catalog: 'Inventory', stations: 'Bays', agenda: 'Schedule', financial: 'Financials' },
     sidebar: { workshopLabel: 'CURRENT WORKSHOP', workshopName: 'Auto Center Prime', workshopLocation: 'São Paulo, SP', team: 'Team', automations: 'Automations', adminName: 'Lucas Pereira', adminRole: 'Administrator', logins: 'Logins', calculator: 'Calculator' },
     search: { placeholder: 'Search plate, client, ID or order...' },
     notifications: { title: 'Pending notifications', empty: 'No pending notifications.' },
-    settings: { title: 'SETTINGS', heading: 'Account settings', account: 'Account', name: 'Name', email: 'Email', role: 'Role', workshop: 'Workshop', location: 'Location', language: 'Language', logout: 'Log out', plan: 'Plan', currency: 'Currency', distanceUnit: 'Distance unit', distanceUnit_KM: 'Kilometers (KM)', distanceUnit_MI: 'Miles (MI)', whatsappIntegration: 'WhatsApp integration', whatsappIntegrationHint: 'Fill in the phone number ID (Meta) or the instance name (Evolution API) used by your workshop, so incoming messages land here automatically.', whatsappPhoneId: 'Phone number ID (Meta Business)', whatsappInstance: 'Instance (Evolution API)', whatsappSaved: 'Integration saved.' },
-    login: { title: 'Sign in', subtitle: 'Access your workshop dashboard.', email: 'Email', password: 'Password', submit: 'Sign in', loading: 'Signing in...', error: 'Could not sign in. Please try again.', back: '← Back to site' },
+    settings: { title: 'SETTINGS', heading: 'Account settings', account: 'Account', name: 'Name', email: 'Email', role: 'Role', workshop: 'Workshop', location: 'Location', language: 'Language', logout: 'Log out', plan: 'Plan', currency: 'Currency', distanceUnit: 'Distance unit', distanceUnit_KM: 'Kilometers (KM)', distanceUnit_MI: 'Miles (MI)', whatsappIntegration: 'WhatsApp integration', whatsappIntegrationHint: 'Fill in the phone number ID (Meta) or the instance name (Evolution API) used by your workshop, so incoming messages land here automatically.', whatsappPhoneId: 'Phone number ID (Meta Business)', whatsappInstance: 'Instance (Evolution API)', whatsappSaved: 'Integration saved.', totpTitle: 'Two-factor authentication (2FA)', totpEnabledHint: 'Enabled. Your login asks for an authenticator code every time.', totpDisableAction: 'Disable 2FA', totpSetupHint: 'Copy the key below and paste it into your authenticator app (Google Authenticator, Authy, etc.) under "Add account > Enter setup key". Then type the 6-digit code it generates.', totpCodeLabel: '6-digit code', totpConfirm: 'Confirm and enable', totpDisabledHint: 'Disabled. Enable it to require an extra code at login, on top of your password.', totpEnableAction: 'Enable 2FA', totpInvalidCode: 'Invalid code.', totpEnabled: '2FA enabled successfully.', totpDisabled: '2FA disabled.' },
+    login: { title: 'Sign in', subtitle: 'Access your workshop dashboard.', email: 'Email', password: 'Password', submit: 'Sign in', loading: 'Signing in...', error: 'Could not sign in. Please try again.', back: '← Back to site', totpCode: 'Authenticator code' },
     landing: {
       navLogin: 'Sign in', navContact: 'Talk to us', navFeatures: 'Features', navPricing: 'Pricing', navFaq: 'FAQ',
       badge: 'New · Multi-workshop SaaS platform',
@@ -571,6 +593,7 @@ const resources = {
       cannotIssueInvoice: 'Could not issue the invoice.', invoiceIssued: 'Invoice {{number}} issued — {{amount}}.',
       noClientPhone: 'Client has no phone on file.', budgetMessage: 'Hello, {{client}}! Here is the quote for order {{order}} ({{vehicle}}): expected total {{amount}}. Shall we proceed?', cannotSendBudget: 'Could not send the quote.', budgetSent: 'Quote sent to the client via WhatsApp.',
       copyApprovalLink: 'Copy approval link',
+      cannotAssignStation: 'Could not assign the station.', workStation: 'Bay / lift', noStation: 'Not assigned',
     },
     checkin: {
       quickTitle: 'QUICK CHECK-IN', title: 'New service order', intro: "Type the plate first — if the vehicle already has history, the data fills in automatically.",
@@ -653,7 +676,17 @@ const resources = {
       issuedInvoices: 'Invoices issued', totalInvoiced: 'Total invoiced',
       numberCol: 'NUMBER', orderCol: 'ORDER', clientCol: 'CLIENT', laborPartsCol: 'LABOR / PARTS', totalCol: 'TOTAL', statusCol: 'STATUS',
       cancel: 'Cancel', canceled: 'Invoice cancelled.', noInvoices: "No invoices issued yet. Issue one from an order's detail panel.",
-      tabInvoices: 'Invoices', tabSuppliers: 'Suppliers', tabPayables: 'Payables',
+      tabInvoices: 'Invoices', tabSuppliers: 'Suppliers', tabPayables: 'Payables', tabReports: 'Report',
+    },
+    reports: {
+      revenue6m: 'Revenue (6 months)', expenses6m: 'Expenses (6 months)', balance6m: 'Balance (6 months)', openPayables: 'Open payables',
+      monthlyTitle: 'Revenue x expenses by month', revenue: 'Revenue', expenses: 'Expenses',
+    },
+    workStations: {
+      eyebrow: 'BAYS', heading: 'Bays & lifts', subtitle: "Track occupancy of your shop's physical spaces.",
+      namePlaceholder: 'Bay/lift name', add: 'Add', created: 'Station registered.', cannotSave: 'Could not save the station.',
+      type_box: 'Bay', type_elevador: 'Lift', type_patio: 'Yard',
+      occupied: 'Occupied', free: 'Free', empty: 'No stations registered yet.',
     },
     employees: {
       title: 'TEAM', heading: 'Mechanics and staff', intro: 'Register the team to assign mechanics to service orders and the schedule.',
