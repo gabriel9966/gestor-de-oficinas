@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: oficinapro
+          POSTGRES_PASSWORD: oficinapro_dev
+          POSTGRES_DB: oficinapro
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U oficinapro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://oficinapro:oficinapro_dev@localhost:5433/oficinapro
+      AUTH_SECRET: ci-test-secret-nao-usar-em-producao
+      PORT: 3001
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Start backend
+        run: nohup node server/index.js > server.log 2>&1 &
+
+      - name: Wait for backend to be healthy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/api/health > /dev/null; then
+              echo "Backend up."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Backend did not become healthy in time."
+          cat server.log
+          exit 1
+
+      - name: Run tests
+        run: npm test
+
+      - name: Print backend log on failure
+        if: failure()
+        run: cat server.log
