@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /v/
+Disallow: /orcamento/
+
+Sitemap: https://oficinapro.com/sitemap.xml
