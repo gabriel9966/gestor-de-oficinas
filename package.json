@@ -9,7 +9,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --test server/*.test.js"
+    "test": "node --test --test-concurrency=1 server/*.test.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

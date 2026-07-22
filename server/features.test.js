@@ -2,29 +2,38 @@
 // estações de trabalho, links públicos e relatório financeiro. Mesmo padrão do api.test.js:
 // exigem o servidor rodando em localhost:3001 e pulam automaticamente se ele não responder.
 // Rodam tudo dentro de uma oficina descartável criada só pra este arquivo, desativada no final.
-import { test, after } from 'node:test'
+// Setup/teardown ficam em before()/after() (não em top-level await) pra garantir a ordem de
+// execução independente de como o test runner agenda os testes deste arquivo.
+import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 
 const BASE = 'http://localhost:3001'
 let serverUp = false
 try { serverUp = (await fetch(`${BASE}/api/health`)).ok } catch { serverUp = false }
+const skip = !serverUp && 'servidor não está rodando em localhost:3001'
 
 async function login(email, password) {
   const res = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
   return res.json()
 }
-const admin = serverUp ? await login('admin@oficinapro.com', 'admin123') : null
 
-async function createTenant() {
-  return fetch(`${BASE}/api/admin/tenants`, {
+let admin, tenant, headers
+
+before(async () => {
+  if (!serverUp) return
+  admin = await login('admin@oficinapro.com', 'admin123')
+  tenant = await fetch(`${BASE}/api/admin/tenants`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${admin.token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'Teste Features Automatizado', owner_name: 'Teste', owner_email: `teste-features-${Date.now()}@isolamento.com`, owner_password: 'teste123', plan: 'scale' }),
   }).then(r => r.json())
-}
-const tenant = serverUp ? await createTenant() : null
-const headers = tenant ? { Authorization: `Bearer ${admin.token}`, 'X-Tenant-Override': String(tenant.id), 'Content-Type': 'application/json' } : {}
-const skip = !serverUp && 'servidor não está rodando em localhost:3001'
+  headers = { Authorization: `Bearer ${admin.token}`, 'X-Tenant-Override': String(tenant.id), 'Content-Type': 'application/json' }
+})
+
+after(async () => {
+  if (!serverUp || !tenant?.id) return
+  await fetch(`${BASE}/api/admin/tenants/${tenant.id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${admin.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'canceled', active: 0 }) })
+})
 
 test('catalog: create part with stock tracking and adjust stock', { skip }, async () => {
   const created = await fetch(`${BASE}/api/catalog`, { method: 'POST', headers, body: JSON.stringify({ type: 'peca', name: 'Item Teste', sku: 'TESTE-1', track_stock: true, quantity: 5, min_quantity: 10 }) }).then(r => r.json())
@@ -92,11 +101,4 @@ test('reports: cashflow returns the requested number of months', { skip }, async
   const report = await fetch(`${BASE}/api/reports/cashflow?months=3`, { headers }).then(r => r.json())
   assert.equal(report.series.length, 3)
   assert.ok('revenue' in report.totals && 'expenses' in report.totals && 'balance' in report.totals)
-})
-
-// Roda garantidamente depois de todos os testes deste arquivo (mesmo que executem em paralelo,
-// diferente de um test() declarado por último — que não tem essa garantia de ordem).
-after(async () => {
-  if (!serverUp) return
-  await fetch(`${BASE}/api/admin/tenants/${tenant.id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${admin.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'canceled', active: 0 }) })
 })
