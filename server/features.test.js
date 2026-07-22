@@ -2,7 +2,7 @@
 // estações de trabalho, links públicos e relatório financeiro. Mesmo padrão do api.test.js:
 // exigem o servidor rodando em localhost:3001 e pulam automaticamente se ele não responder.
 // Rodam tudo dentro de uma oficina descartável criada só pra este arquivo, desativada no final.
-import { test } from 'node:test'
+import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
 
 const BASE = 'http://localhost:3001'
@@ -94,7 +94,9 @@ test('reports: cashflow returns the requested number of months', { skip }, async
   assert.ok('revenue' in report.totals && 'expenses' in report.totals && 'balance' in report.totals)
 })
 
-test('cleanup: deactivate the disposable test tenant', { skip }, async () => {
-  const res = await fetch(`${BASE}/api/admin/tenants/${tenant.id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${admin.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'canceled', active: 0 }) })
-  assert.equal(res.status, 200)
+// Roda garantidamente depois de todos os testes deste arquivo (mesmo que executem em paralelo,
+// diferente de um test() declarado por último — que não tem essa garantia de ordem).
+after(async () => {
+  if (!serverUp) return
+  await fetch(`${BASE}/api/admin/tenants/${tenant.id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${admin.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'canceled', active: 0 }) })
 })
